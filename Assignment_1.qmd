@@ -1,0 +1,274 @@
+---
+title: "Development Analysis of Norway, Croatia, and Greece"
+subtitle: "Economic, Social, Environmental and Health Indicators"
+author: "Netheeswaran A | 24204827"
+date: "17 June 2025"
+format:
+  beamer:
+    toc: false
+    template: header_beamer.tex
+    #theme: metropolis
+    #colortheme: beaver
+    #slide-level: 2
+    fig-align: center
+fontsize: 10pt
+execute:
+  echo: true
+  message: false
+  warning: false
+  size: 12
+---
+
+## Objective
+
+- **Analyze** key development indicators, including economic, social, environmental, and health metrics, for Norway, Croatia, and Greece using data.table.
+- **Compare trends** over time to identify patterns, disparities, and improvements in development indicators across the three countries.
+- **Visualize insights** using appropriate graphical representations to enhance understanding of complex data.
+- **Investigate policy impacts** by exploring how government initiatives and external factors have shaped development in each country.
+- **Generate actionable findings** that can inform further research or policy recommendations.
+
+
+
+```{r}
+#| echo: false
+
+library(data.table)
+library(ggplot2)
+library(scales)
+library(viridis)
+library(dplyr)
+library(knitr)
+```
+
+## Read data and Clean Data
+
+```{r}
+# Read the data and Rename columns
+nor <- fread("indicators_nor.csv", skip = 1)
+hrv <- fread("indicators_hrv.csv", skip = 1)
+grc <- fread("indicators_grc.csv", skip = 1)
+setnames(nor, old = names(nor),
+         new = c("Country", "ISO3", "Year", 
+                 "Indicator", "Code", "Value"))
+setnames(hrv, old = names(hrv), 
+         new = c("Country", "ISO3", "Year", 
+                 "Indicator", "Code", "Value"))
+setnames(grc, old = names(grc), 
+         new = c("Country", "ISO3", "Year", 
+                 "Indicator", "Code", "Value"))
+# Merge all datasets into one
+combined <- rbind(nor, hrv, grc)
+# Assign correct classes
+combined[, Year := as.integer(Year)]
+combined[, Value := as.numeric(Value)]
+```
+
+## Quick Data Exploration
+
+```{r}
+#| label: data-summary
+#| echo: true
+#| eval: true
+
+# 1. Dimensions and structure
+str(combined)
+
+```
+## Interpretation:
+
+The dataset contains **222,731** observations and **6** variables. The key fields are:
+
+Country, ISO3, and Indicator: stored as character variables.
+
+Year: stored as an integer.
+
+Value: numeric, which holds the actual data for each indicator.
+
+This confirms the data was read in correctly and type conversion (via data.table) worked as intended.
+
+
+## 
+
+```{r}
+#| label: unique-checks
+#| echo: true
+#| eval: true
+ 
+# 2. Unique values(combined$Indicator)
+unique(combined$Country)
+length(unique(combined$Indicator))
+```
+
+The dataset includes data from three countries: **Norway, Croatia, and Greece**.
+There are 3,303 unique indicators, which suggests the dataset is very rich in variables spanning multiple sectors like health, education, economy, etc.
+
+
+## Count by Country
+```{r}
+#| label: count-by-country
+#| echo: true
+#| eval: true
+combined[, .N, keyby = Country]
+```
+Norway - 79,315 records and Greece - 78,279 records and Croatia - 65,137 records
+
+All countries are well-represented, and no country appears to be significantly under-sampled. This ensures fair comparative analysis is possible.
+
+## Summary of Top Indicators (by Mean Value)
+
+```{r}
+#| label: indicator-stats
+#| echo: true
+#| eval: true
+#| fig-align: center
+
+indicator_summary = combined %>%
+  group_by(Indicator) %>%
+  summarise(
+    min_value = min(Value, na.rm = TRUE),
+    mean_value = mean(Value, na.rm = TRUE),
+    max_value = max(Value, na.rm = TRUE),
+    count = n()
+  ) %>%
+  arrange(desc(mean_value))
+```
+
+##
+
+```{r}
+head(indicator_summary$Indicator,n = 10)
+```
+
+##
+
+The top indicators (by average value across years and countries) include:
+
+1. GNI (constant LCU)
+2. GDP (constant LCU)
+3. Gross value added at basic prices
+4. Broad money
+5. Net domestic credit
+
+These are mostly economic indicators, indicating high monetary values. This tells us the dataset contains extensive economic metrics in local currency units (LCU), making them useful for macroeconomic trend analysis.
+
+## Indicator selection
+```{r}
+#| label: analysis-keyby
+#| echo: true
+#| eval: true
+
+# Select 5 meaningful indicators
+selected_indicators <- c(
+  "GDP per capita (current US$)",
+  "Life expectancy at birth, total (years)",
+  "School enrollment, tertiary (% gross)",
+  "CO2 emissions (metric tons per capita)",
+  "Fertility rate, total (births per woman)"
+)
+```
+##
+
+```{r}
+analysis_dt <- combined[Indicator %in% selected_indicators]
+
+# Summary analysis using keyby: mean and sd of values
+summary_stats <- analysis_dt[, .(
+  Mean_Value = mean(Value, na.rm = TRUE),
+  SD_Value = sd(Value, na.rm = TRUE)
+), keyby = .(Country, Indicator)]
+```
+
+##
+
+\small
+
+```{r}
+#| label: summary-kable
+#| echo: false
+#| results: asis
+#| eval: true
+kable(summary_stats, format = "latex", booktabs = TRUE)
+```
+
+## Mean Interpretation
+
+* Norway consistently reports higher average values across GDP per capita, life expectancy, and fertility rate, which reflects its status as a high-income and well-developed nation.
+
+* Greece shows moderate values, particularly in life expectancy and tertiary education, where it even surpasses Norway.
+
+* Croatia typically has the lowest average values across most indicators, suggesting different economic and social development stages.
+
+## Standard Deviation Interpretation
+
+* GDP per capita has high variability across all three countries, especially Norway, indicating significant changes over time due to economic cycles, inflation adjustments, or currency fluctuations.
+
+* Fertility rate and life expectancy show low standard deviation, which reflects stable year-over-year values — these indicators typically change slowly.
+
+* School enrollment in tertiary education shows moderate variability, suggesting policy reforms, demographic shifts, or educational investments affected different years differently.
+
+## Life Expectancy Over Time by Country
+
+```{r}
+#| label: fig-life-expectancy-trend
+#| echo: false
+#| eval: true
+#| fig-align: center
+#| out-width: 90%
+
+# Filter data for Life Expectancy
+life_exp_dt <- combined[Indicator == "Life expectancy at birth, total (years)"]
+ggplot(life_exp_dt, aes(x = Year, y = Value, color = Country)) +
+  geom_line(size = 1) +
+  geom_point(size = 1.5) +
+  labs(x = "Year", y = "Life Expectancy (Years)") +
+  theme_minimal(base_size = 12)
+```
+
+## Interpretation
+
+The plot shows a steady increase in life expectancy across all three countries from 1960 to 2022:
+
+* Norway has consistently led with the highest life expectancy, surpassing 82 years in recent years.
+
+* Greece shows strong growth, closely trailing Norway after 1990.
+
+* Croatia started at a lower baseline (~65 years in 1960) but has steadily improved, reaching over 78 years by 2022.
+
+All three countries demonstrate positive long-term health outcomes, with narrowing gaps between them in recent decades.
+
+
+## Average GDP per Capita Over Time (All Countries Combined)
+
+```{r}
+#| label: fig-avg-gdp-trend
+#| echo: false
+#| eval: true
+#| fig-align: center
+#| out-width: 90%
+
+# Filter for GDP indicator
+gdp_dt <- combined[Indicator == "GDP per capita (current US$)"]
+
+# Calculate year-wise average GDP across all countries
+avg_gdp_yearly <- gdp_dt[, .(Avg_GDP = mean(Value, na.rm = TRUE)), by = Year]
+
+ggplot(avg_gdp_yearly, aes(x = Year, y = Avg_GDP)) +
+  geom_line(color = "steelblue", size = 1.2) +
+  geom_point(color = "darkblue", size = 1.5) +
+  labs(x = "Year", y = "Average GDP (US$)") +
+  scale_y_continuous(labels = scales::dollar_format(scale = 1e-3, suffix = "k")) +
+  theme_minimal(base_size = 12)
+```
+
+
+## Interpretation
+
+The plot shows the average GDP per capita across Norway, Greece, and Croatia from 1960 to 2022
+
+* There is a steady economic growth trend from 1960 through the early 2000s.
+
+* A sharp rise occurs after 2000, driven largely by Norway's high GDP values.
+
+* Fluctuations post-2008 reflect the global financial crisis, and the dips around 2020 likely capture the COVID-19 economic impact.
+
+Despite volatility, the overall trend reflects long-term economic development and recovery across the three countries.
