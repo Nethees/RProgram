@@ -1,5 +1,6 @@
 ---
 title: "Version_control"
+author: "Netheeswaran A"
 format: html
 editor: visual
 ---
@@ -10,10 +11,7 @@ usethis::git_sitrep()
 
 You can add options to executable code like this
 
-```{r}
-usethis::use_git_config(
-user.name = "Netheeswaran", # Your username2
-user.email = "netheeswaran.arunachalam@ucdconnect.ie")
+```{}
 ```
 
 The `echo: false` option disables the printing of code (only output is displayed).
