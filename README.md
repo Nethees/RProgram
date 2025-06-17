@@ -1,3 +1,3 @@
-# Advanced R Programing
+# Advanced R Programming
 
-This repository is created for the module Advanced R Programing
+This repository contains course materials, code exercises, and project work completed as part of the Advanced R Programming module.
